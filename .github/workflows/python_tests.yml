@@ -55,11 +55,10 @@ jobs:
           - { os: macos-12, python-version: "3.10", architecture: x64 }
           # Windows uses the full API up until Python 3.10, so each of these
           # jobs tests a distinct binary wheel.
-          # TODO(b/231485326): fix the win32 wheels to load properly.
-          # - { os: windows-2019, python-version: "3.7", architecture: x86 }
-          # - { os: windows-2019, python-version: "3.8", architecture: x86 }
-          # - { os: windows-2019, python-version: "3.9", architecture: x86 }
-          # - { os: windows-2019, python-version: "3.10", architecture: x86 }
+          - { os: windows-2019, python-version: "3.7", architecture: x86 }
+          - { os: windows-2019, python-version: "3.8", architecture: x86 }
+          - { os: windows-2019, python-version: "3.9", architecture: x86 }
+          - { os: windows-2019, python-version: "3.10", architecture: x86 }
           - { os: windows-2019, python-version: "3.7", architecture: x64 }
           - { os: windows-2019, python-version: "3.8", architecture: x64 }
           - { os: windows-2019, python-version: "3.9", architecture: x64 }

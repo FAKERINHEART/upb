@@ -116,8 +116,6 @@ upb_alloc upb_alloc_global = {&upb_global_allocfunc};
 
 /* upb_Arena ******************************************************************/
 
-/* Be conservative and choose 16 in case anyone is using SSE. */
-
 struct mem_block {
   struct mem_block* next;
   uint32_t size;
@@ -130,7 +128,8 @@ typedef struct cleanup_ent {
   void* ud;
 } cleanup_ent;
 
-static const size_t memblock_reserve = UPB_ALIGN_UP(sizeof(mem_block), 16);
+static const size_t memblock_reserve =
+    UPB_ALIGN_UP(sizeof(mem_block), UPB_MALLOC_ALIGN);
 
 static upb_Arena* arena_findroot(upb_Arena* a) {
   /* Path splitting keeps time complexity down, see:
@@ -143,9 +142,16 @@ static upb_Arena* arena_findroot(upb_Arena* a) {
   return a;
 }
 
+static void* upb_Arena_AlignMem(void* ptr, size_t* size) {
+  uintptr_t ui_ptr = (uintptr_t)ptr;
+  uintptr_t ui_ptr_aligned = UPB_ALIGN_MALLOC(ui_ptr);
+  *size -= ui_ptr_aligned - ui_ptr;
+  return (void*)ui_ptr_aligned;
+}
+
 static void upb_Arena_addblock(upb_Arena* a, upb_Arena* root, void* ptr,
                                size_t size) {
-  mem_block* block = ptr;
+  mem_block* block = upb_Arena_AlignMem(ptr, &size);
 
   /* The block is for arena |a|, but should appear in the freelist of |root|. */
   block->next = root->freelist;
@@ -174,7 +180,13 @@ static bool upb_Arena_Allocblock(upb_Arena* a, size_t size) {
 }
 
 void* _upb_Arena_SlowMalloc(upb_Arena* a, size_t size) {
-  if (!upb_Arena_Allocblock(a, size)) return NULL; /* Out of memory. */
+  // Since we can't predict the alignment of allocated memory, we ask for an
+  // extra UPB_MALLOC_ALIGN to ensure that aligning the memory up will not cause
+  // the size to shrink smaller than what we need. There may be a more
+  // principled solution we could implement later.
+  if (!upb_Arena_Allocblock(a, UPB_ALIGN_MALLOC(size) + UPB_MALLOC_ALIGN)) {
+    return NULL; /* Out of memory. */
+  }
   UPB_ASSERT(_upb_ArenaHas(a) >= size);
   return upb_Arena_Malloc(a, size);
 }
@@ -218,7 +230,7 @@ upb_Arena* upb_Arena_Init(void* mem, size_t n, upb_alloc* alloc) {
 
   if (n) {
     /* Align initial pointer up so that we return properly-aligned pointers. */
-    void* aligned = (void*)UPB_ALIGN_UP((uintptr_t)mem, 16);
+    void* aligned = (void*)UPB_ALIGN_MALLOC((uintptr_t)mem);
     size_t delta = (uintptr_t)aligned - (uintptr_t)mem;
     n = delta <= n ? n - delta : 0;
     mem = aligned;

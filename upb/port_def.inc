@@ -88,9 +88,11 @@
 #define UPB_INLINE static
 #endif
 
+/* Be conservative and choose 16 in case anyone is using SSE. */
+#define UPB_MALLOC_ALIGN 16
 #define UPB_ALIGN_UP(size, align) (((size) + (align) - 1) / (align) * (align))
 #define UPB_ALIGN_DOWN(size, align) ((size) / (align) * (align))
-#define UPB_ALIGN_MALLOC(size) UPB_ALIGN_UP(size, 16)
+#define UPB_ALIGN_MALLOC(size) UPB_ALIGN_UP(size, UPB_MALLOC_ALIGN)
 #define UPB_ALIGN_OF(type) offsetof (struct { char c; type member; }, member)
 
 /* Hints to the compiler about likely/unlikely branches. */
